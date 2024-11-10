@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+# usage: cargo run --message-format json-diagnostic-rendered-ansi | nvql_cargo
+
+JQ_SCRIPT=$(dirname "${BASH_SOURCE[0]}")/nvql_cargo.jq
+sed -n '1,/{"reason":"build-finished"/p' | \
+    jq --slurp --raw-output -f $JQ_SCRIPT >$NVIM_FILE_LIST
