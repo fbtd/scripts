@@ -19,7 +19,7 @@ generate_command () {
     [[ ! -h $config_path ]] && echo -n "bash -i" && return 0
     source_cmd=""
     if [[ -f $config_path/.tmux.sh ]]; then
-        source_cmd="&& . .tmux.sh"
+        source_cmd="&& . ./.tmux.sh"
     fi
     cd_cmd="cd "$(readlink $config_path)
     echo -n "bash -i -c \"$cd_cmd $source_cmd && exec bash\""
@@ -34,7 +34,7 @@ tmux list-sessions | grep "^$SESSION_NAME" && err "session already running"
 
 tmux new-session -x $COLUMNS -y $LINES -d -n 1 -s $SESSION_NAME "$(generate_command 0)"
 sleep $DELAY
-tmux new-window -n 1 -t $SESSION_NAME -e C=$COLUMNS "$(generate_command 1)"
+tmux new-window -n 1 -t $SESSION_NAME "$(generate_command 1)"
 sleep $DELAY
 tmux new-window -n 2 -t $SESSION_NAME "$(generate_command 2)"
 sleep $DELAY
