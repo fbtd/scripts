@@ -46,5 +46,11 @@ tmux new-window -n 5 -t $SESSION_NAME "$(generate_command 5)"
 sleep $DELAY
 tmux new-window -n 6 -t $SESSION_NAME "$(generate_command 6)"
 sleep $DELAY
+tmux new-window -n 7 -t $SESSION_NAME "$(generate_command 7)"
+sleep $DELAY
+tmux new-window -n 8 -t $SESSION_NAME "$(generate_command 8)"
+sleep $DELAY
+tmux new-window -n 9 -t $SESSION_NAME "$(generate_command 9)"
+sleep $DELAY
 
 tmux attach -t $SESSION_NAME:$DEFAULT_WINDOW
