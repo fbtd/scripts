@@ -33,24 +33,10 @@ tmux list-sessions || tmux start-server
 tmux list-sessions | grep "^$SESSION_NAME" && err "session already running"
 
 tmux new-session -x $COLUMNS -y $LINES -d -n 1 -s $SESSION_NAME "$(generate_command 0)"
-sleep $DELAY
-tmux new-window -n 1 -t $SESSION_NAME "$(generate_command 1)"
-sleep $DELAY
-tmux new-window -n 2 -t $SESSION_NAME "$(generate_command 2)"
-sleep $DELAY
-tmux new-window -n 3 -t $SESSION_NAME "$(generate_command 3)"
-sleep $DELAY
-tmux new-window -n 4 -t $SESSION_NAME "$(generate_command 4)"
-sleep $DELAY
-tmux new-window -n 5 -t $SESSION_NAME "$(generate_command 5)"
-sleep $DELAY
-tmux new-window -n 6 -t $SESSION_NAME "$(generate_command 6)"
-sleep $DELAY
-tmux new-window -n 7 -t $SESSION_NAME "$(generate_command 7)"
-sleep $DELAY
-tmux new-window -n 8 -t $SESSION_NAME "$(generate_command 8)"
-sleep $DELAY
-tmux new-window -n 9 -t $SESSION_NAME "$(generate_command 9)"
-sleep $DELAY
+for i in $(seq 1 9); do
+    sleep $DELAY
+    tmux new-window -n $i -t $SESSION_NAME "$(generate_command $i)"
+done
 
+sleep $DELAY
 tmux attach -t $SESSION_NAME:$DEFAULT_WINDOW
