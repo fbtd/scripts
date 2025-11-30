@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 DEFAULT_WINDOW=1
-SESSION_NAME="main"
-CONFIG_FOLDER="$HOME/.config/tmux_init"
+SESSION_NAME="${1:-main}"
+CONFIG_FOLDER="$HOME/.config/tmux_init/$SESSION_NAME"
 DELAY=0.2
 
 say() {
