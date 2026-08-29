@@ -1,0 +1,88 @@
+#!/bin/bash
+# Workspace switcher popup (Omarchy select menu).
+# Each row is "N  Name". Names come from ~/.config/omarchy/workspace-names.json,
+# otherwise the Hyprland workspace name, otherwise the last window title.
+#
+# Usage:
+#   omarchy-menu-workspaces           # switch to a workspace
+#   omarchy-menu-workspaces --rename  # set a persistent name for a workspace
+
+set -euo pipefail
+
+NAMES_FILE="${OMARCHY_WORKSPACE_NAMES:-$HOME/.config/omarchy/workspace-names.json}"
+ICON=$'\U000f035c' # nf-md-view_dashboard_outline
+MODE=switch
+
+case "${1:-}" in
+  --rename | rename) MODE=rename ;;
+  -h | --help | help)
+    cat <<'USAGE'
+Usage: omarchy-menu-workspaces [--rename]
+
+Switch workspaces from an Omarchy popup, showing number and name.
+Persistent names live in ~/.config/omarchy/workspace-names.json.
+USAGE
+    exit 0
+    ;;
+esac
+
+mkdir -p "$(dirname "$NAMES_FILE")"
+[[ -f $NAMES_FILE ]] || printf '{}\n' >"$NAMES_FILE"
+
+workspaces_json=$(hyprctl workspaces -j)
+
+rows=$(jq -r --arg icon "$ICON" --slurpfile names_file "$NAMES_FILE" '
+  def names: $names_file[0] // {};
+  def custom_name($id): names[$id | tostring] // empty;
+  def pretty($id; $w):
+    custom_name($id)
+     // (if ($w.name | tostring) != ($id | tostring) then $w.name else empty end)
+     // (if ($w.lastwindowtitle // "") != "" then $w.lastwindowtitle else empty end)
+     // "";
+  . as $ws
+  | ([range(1; 11)] + ($ws | map(.id)) | unique | map(select(. > 0)) | sort) as $ids
+  | $ids[]
+  | . as $id
+  | ($ws | map(select(.id == $id)) | .[0] // {id: $id, name: ($id | tostring), lastwindowtitle: ""}) as $w
+  | pretty($id; $w) as $label
+  | (if $label == "" then ($id | tostring) else ($id | tostring) + "  " + $label end) as $shown
+  | $icon + "\t" + $shown
+' <<<"$workspaces_json")
+
+[[ -n $rows ]] || exit 1
+
+prompt="Switch workspace"
+[[ $MODE == rename ]] && prompt="Name workspace"
+
+selection=$(omarchy-menu-select "$prompt" <<<"$rows" -- --width 520 ) || exit 0
+[[ -n $selection ]] || exit 0
+
+label=$(cut -f1 <<<"$selection")
+id=${label%% *}
+[[ $id =~ ^[0-9]+$ ]] || exit 1
+
+if [[ $MODE == switch ]]; then
+  hyprctl dispatch "hl.dsp.focus({ workspace = \"$id\" })" >/dev/null
+  exit 0
+fi
+
+current=$(jq -r --arg id "$id" '.[$id] // empty' "$NAMES_FILE")
+name=$(omarchy-menu-input "Name for workspace $id" --width 420) || exit 0
+name=$(printf '%s' "$name" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+if [[ -z $name ]]; then
+  jq --arg id "$id" 'del(.[$id])' "$NAMES_FILE" >"$tmp"
+else
+  jq --arg id "$id" --arg name "$name" '. + {($id): $name}' "$NAMES_FILE" >"$tmp"
+fi
+mv "$tmp" "$NAMES_FILE"
+trap - EXIT
+
+if [[ -n $name ]]; then
+  omarchy-notification-send -g "$ICON" "Workspace $id" "Named “$name”"
+else
+  omarchy-notification-send -g "$ICON" "Workspace $id" "Cleared custom name${current:+ (was “$current”)}"
+fi
