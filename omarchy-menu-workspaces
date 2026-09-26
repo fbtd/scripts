@@ -2,6 +2,9 @@
 # Workspace switcher popup (Omarchy select menu).
 # Each row is "N  Name". Names come from ~/.config/omarchy/workspace-names.json,
 # otherwise the Hyprland workspace name, otherwise the last window title.
+# The current workspace uses a check icon. Every row gets a subtext of
+# "current", "empty", or "N windows". The menu always highlights the first
+# row, so the icon is a marker, not a selection.
 #
 # Usage:
 #   omarchy-menu-workspaces           # switch to a workspace
@@ -11,6 +14,7 @@ set -euo pipefail
 
 NAMES_FILE="${OMARCHY_WORKSPACE_NAMES:-$HOME/.config/omarchy/workspace-names.json}"
 ICON=$'\U000f035c' # nf-md-view_dashboard_outline
+CURRENT_ICON=$'\U000f05e0' # nf-md-check_circle
 MODE=switch
 
 case "${1:-}" in
@@ -30,8 +34,9 @@ mkdir -p "$(dirname "$NAMES_FILE")"
 [[ -f $NAMES_FILE ]] || printf '{}\n' >"$NAMES_FILE"
 
 workspaces_json=$(hyprctl workspaces -j)
+active_id=$(jq -r '.id' <<<"$(hyprctl activeworkspace -j)")
 
-rows=$(jq -r --arg icon "$ICON" --slurpfile names_file "$NAMES_FILE" '
+rows=$(jq -r --arg icon "$ICON" --arg current_icon "$CURRENT_ICON" --argjson active "$active_id" --slurpfile names_file "$NAMES_FILE" '
   def names: $names_file[0] // {};
   def custom_name($id): names[$id | tostring] // empty;
   def pretty($id; $w):
@@ -46,7 +51,13 @@ rows=$(jq -r --arg icon "$ICON" --slurpfile names_file "$NAMES_FILE" '
   | ($ws | map(select(.id == $id)) | .[0] // {id: $id, name: ($id | tostring), lastwindowtitle: ""}) as $w
   | pretty($id; $w) as $label
   | (if $label == "" then ($id | tostring) else ($id | tostring) + "  " + $label end) as $shown
-  | $icon + "\t" + $shown
+  | (if $id == $active then $current_icon else $icon end) as $row_icon
+  | ($w.windows // 0) as $windows
+  | (if $id == $active then "current"
+     elif $windows == 0 then "empty"
+     elif $windows == 1 then "1 window"
+     else ($windows | tostring) + " windows" end) as $mark
+  | $row_icon + "\t" + $shown + "\t" + $mark
 ' <<<"$workspaces_json")
 
 [[ -n $rows ]] || exit 1
